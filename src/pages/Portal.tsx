@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { LogOut, Activity, Users, Box } from "lucide-react"
 import { ViewState } from '../App'
 
-const API_URL_SSO = 'http://localhost:8081'
+const API_URL_SSO = import.meta.env.VITE_API_URL_SSO || 'http://localhost:8081'
 
 interface Application {
   id: number;

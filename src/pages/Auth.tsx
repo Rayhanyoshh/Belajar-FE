@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
-const API_URL_SSO = 'http://localhost:8081'
+const API_URL_SSO = import.meta.env.VITE_API_URL_SSO || 'http://localhost:8081'
 
 export default function Auth({ setToken }: { setToken: (token: string) => void }) {
   const [username, setUsername] = useState('')

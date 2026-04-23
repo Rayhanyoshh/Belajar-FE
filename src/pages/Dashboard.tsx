@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Activity, LogOut, Plus, RefreshCw } from "lucide-react"
 
-const API_URL_TRACKER = 'http://localhost:8080'
+const API_URL_TRACKER = import.meta.env.VITE_API_URL_TRACKER || 'http://localhost:8080'
 
 interface Website {
   id: number;
