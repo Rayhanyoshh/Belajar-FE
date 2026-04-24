@@ -11,6 +11,27 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>(token ? 'portal' : 'auth')
 
   useEffect(() => {
+    // Tangkap token dari URL jika baru kembali dari Google OAuth
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    const urlRefreshToken = params.get('refresh_token')
+
+    if (urlToken && urlRefreshToken) {
+      localStorage.setItem('jwt_token', urlToken)
+      localStorage.setItem('refresh_token', urlRefreshToken)
+      
+      try {
+        const payload = JSON.parse(atob(urlToken.split('.')[1]))
+        localStorage.setItem('username', payload.username)
+      } catch (e) {
+        console.error("Gagal membaca token payload")
+      }
+
+      setToken(urlToken)
+      // Bersihkan URL agar token tidak terlihat
+      window.history.replaceState({}, document.title, "/")
+    }
+
     const handleStorageChange = () => {
       const newToken = localStorage.getItem('jwt_token')
       setToken(newToken)

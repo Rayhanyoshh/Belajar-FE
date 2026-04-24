@@ -26,21 +26,45 @@ export default function Portal({ setToken, setCurrentView }: { setToken: (t: str
   const username = localStorage.getItem('username') || 'User'
 
   useEffect(() => {
+    const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+      let currentToken = localStorage.getItem('jwt_token')
+      const headers = { ...options.headers, 'Authorization': `Bearer ${currentToken}` }
+      let res = await fetch(url, { ...options, headers })
+
+      if (res.status === 401) {
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (!refreshToken) {
+          localStorage.clear()
+          setToken(null)
+          return res
+        }
+
+        const refreshRes = await fetch(`${API_URL_SSO}/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        })
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json()
+          localStorage.setItem('jwt_token', data.token)
+          localStorage.setItem('refresh_token', data.refresh_token)
+          headers['Authorization'] = `Bearer ${data.token}`
+          res = await fetch(url, { ...options, headers })
+        } else {
+          localStorage.clear()
+          setToken(null)
+        }
+      }
+      return res
+    }
+
     const fetchApps = async () => {
       try {
-        const token = localStorage.getItem('jwt_token')
-        const res = await fetch(`${API_URL_SSO}/applications`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        const res = await fetchWithAuth(`${API_URL_SSO}/applications`)
         if (res.ok) {
           const data = await res.json()
           setApps(data)
-        } else {
-          // Token mungkin invalid
-          if (res.status === 401) {
-            localStorage.clear()
-            setToken(null)
-          }
         }
       } catch (err) {
         console.error("Gagal mengambil daftar aplikasi", err)

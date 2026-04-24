@@ -25,7 +25,6 @@ export default function Dashboard({ setToken, setCurrentView }: { setToken: (tok
   const [newUrl, setNewUrl] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const token = localStorage.getItem('jwt_token')
   const username = localStorage.getItem('username') || 'User'
 
   const fetchWebsites = async () => {
@@ -41,20 +40,54 @@ export default function Dashboard({ setToken, setCurrentView }: { setToken: (tok
     }
   }
 
+  // Wrapper pintar untuk melakukan fetch yang otomatis me-refresh token jika 401
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    let currentToken = localStorage.getItem('jwt_token')
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${currentToken}`
+    }
+
+    let res = await fetch(url, { ...options, headers })
+
+    if (res.status === 401) {
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (!refreshToken) {
+        handleLogout()
+        return res
+      }
+
+      const API_URL_SSO = import.meta.env.VITE_API_URL_SSO || 'http://localhost:8081'
+      const refreshRes = await fetch(`${API_URL_SSO}/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      })
+
+      if (refreshRes.ok) {
+        const data = await refreshRes.json()
+        localStorage.setItem('jwt_token', data.token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+        
+        // Ulangi request aslinya dengan token baru
+        headers['Authorization'] = `Bearer ${data.token}`
+        res = await fetch(url, { ...options, headers })
+      } else {
+        handleLogout()
+      }
+    }
+    return res
+  }
+
   const triggerCheck = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL_TRACKER}/check`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const res = await fetchWithAuth(`${API_URL_TRACKER}/check`, { method: 'POST' })
       if (res.ok) {
         const data: StatusData[] = await res.json()
         const statusMap: Record<string, string> = {}
         data.forEach(s => statusMap[s.url] = s.status)
         setStatuses(statusMap)
-      } else if (res.status === 401) {
-        handleLogout() // Token kedaluwarsa
       }
     } catch (err) {
       console.error("Gagal mengecek status")
@@ -66,12 +99,9 @@ export default function Dashboard({ setToken, setCurrentView }: { setToken: (tok
   const handleAddWebsite = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch(`${API_URL_TRACKER}/websites`, {
+      const res = await fetchWithAuth(`${API_URL_TRACKER}/websites`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: newUrl })
       })
       
